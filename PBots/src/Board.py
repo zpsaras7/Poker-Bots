@@ -1,6 +1,5 @@
 from deuces import Deck
 from deuces import Card
-from deuces import Evaluator
 
 class Board:
     board_cards = []
@@ -31,6 +30,7 @@ class Board:
     def fillBoardRandomly(self):
         while len(self.board_cards) != 5:
             self.board_cards.append(self.deck.draw())
+            #Make sure that drawing from deck removes cards from the deck
           
     def printBoard(self):
         print "My Hand:  "
