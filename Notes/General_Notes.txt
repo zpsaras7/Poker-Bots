@@ -1,0 +1,5 @@
+General notes
+
+Dependency/Library repository copies can be added to root directory for testing & experimentation.
+
+Specific python packages required for the bot to run code are copied into the src directory of the bot (which later gets included in the zipped bot) to help keep bot directory clean etc

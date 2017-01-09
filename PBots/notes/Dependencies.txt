@@ -1,0 +1,23 @@
+Add code we write to src/main (our package)
+
+directory structure for bot:
+
+../PBots/
+    |--- README.txt
+    |
+    +--- notes/
+    |    |
+    |    |--- project_notes.txt       THIS FILE
+    |
+    +--- src/ 				contains all python files, dependencies
+    |    |
+    |    |--- __init__.py
+    |    |--- deuces/    		deuces package
+    |    |
+    |    |
+    |    +--- main/ 			main package
+    |        |--- __init__.py
+    |        |--- main.py
+    |        |--- ...
+    |
+    |--- tests/ 			contains test files
