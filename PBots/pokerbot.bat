@@ -1,1 +1,1 @@
-python Player.py %1
+python ./src/Player.py %1

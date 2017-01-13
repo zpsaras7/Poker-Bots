@@ -40,18 +40,24 @@ class Player:
             # character (\n) or your bot will hang!
             words = data.split()
             packetName = data.split()[0]
+            print "Words: ", words
             if packetName == "GETACTION":
                 potSize = words[1]
-                numBoardCards = words[2]
-                boardCards = [] if numBoardCards == 0 else words[3:3+numBoardCards]
+                numBoardCards = int(words[2])
                 
-                words = words[4+numBoardCards:-1]
-                numLastActions = words[0]
-                lastActions = [] if numLastActions == 0 else words[1 : 1+numLastActions]
+                index = 3  #index of next word to look up / handle; avoids resizing words list
+                boardCards = [Card.new(cardString) for cardString in words[index:index+numBoardCards] ]
+                index+= numBoardCards
+
+                numLastActions = int(words[index])
+                index+= 1
+                lastActions = words[index : index+numLastActions]
+                index+= numLastActions
                
-                words = words[2+numLastActions:-1]
-                numLegalActions = words[0]
-                legalActions = [] if numLegalActions == 0 else words[1 : 1+numLegalActions]
+                numLegalActions = int(words[index])
+                index+= 1
+                legalActions = words[index : index+numLegalActions]
+                index+= numLegalActions
                 
                 timebank = words[-1]
                 # Currently CHECK on every move. You'll want to change this.
@@ -61,7 +67,11 @@ class Player:
                 button = words[2] == 'True'
                 hand = [ words[3], words[4]]
                 current_hand = [ Card.new(handCardString) for handCardString in hand]
-                print "hand:", hand, " ; set current_hand to ", current_hand
+                print "hand:", hand, " ; set current_hand to ", current_hand, "; pretty:", Card.print_pretty_cards(current_hand)
+#                 print "test"
+#                 for string in hand:
+#                     print string, Card.int_to_pretty_str(string)
+#                 print "/test"
                 myBank = words[5]
                 otherBank = words[6]
                 timeBank = words[-1]
