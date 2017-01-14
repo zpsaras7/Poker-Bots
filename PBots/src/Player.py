@@ -126,7 +126,7 @@ class Player:
         decidedAction = None
         defaultAction = 'FOLD'
         
-        if handRankDec > .5:
+        if handRankDec > .5: #above average hand
             actionParamsList = [actionQueue.analyzeActionString(action)[1] for action in legalActions]
             for params in actionParamsList:
                 if params['type'] == 'LEGAL_A':
@@ -134,9 +134,11 @@ class Player:
                     s.send(decidedAction+'\n')
                     return
                 #TODO: finish others
+        if handRankDec <= .5: #below average hand
+            pass
         if decidedAction is None:
             #go with default action (maybe make this random)
-            recorder.write('decidedAction is None; sending', defaultAction)
+            recorder.write('decidedAction is None; sending:', defaultAction)
             s.send(defaultAction+'\n')
         
     def setTimeBankSeconds(self, newTimeStr):

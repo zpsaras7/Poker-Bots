@@ -2,8 +2,6 @@ import Queue
 
 from deuces import Card
 
-import Action
-
 global debug
 debug = False
 
