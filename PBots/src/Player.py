@@ -5,6 +5,7 @@ import sys
 from deuces import Card
 from deuces import Evaluator
 import matplotlib.pyplot as plt
+from Board import Board
 
 import Recorder as rec
 import ActionQueue as aq
@@ -78,6 +79,7 @@ class Player:
                 
                 index = 3  #index of next word to look up / handle; avoids resizing words list
                 boardCards = [Card.new(cardString) for cardString in words[index:index+numBoardCards] ]
+                print boardCards
                 index+= numBoardCards
 
                 numLastActions = int(words[index])
@@ -117,8 +119,11 @@ class Player:
             print "taking automatic action; only legal action is:", legalActions[0]
             s.send(legalActions[0]+'\n')
             return 
-        
-        handRank = evaluator.evaluate(self.currentParameters['hand'], boardCards)
+        if len(boardCards) == 0:
+            b = Board(self.currentParameters['hand'])
+            handRank = b.emptyBoardRandomRank()
+        else:
+            handRank = evaluator.evaluate(self.currentParameters['hand'], boardCards)
         handRankDec = evaluator.get_five_card_rank_percentage(handRank)
         recorder.write('handRank:'+ str(handRankDec))
         
@@ -126,19 +131,25 @@ class Player:
         decidedAction = None
         defaultAction = 'FOLD'
         
-        if handRankDec > .5: #above average hand
+        if handRankDec > (1./3): #above average hand
             actionParamsList = [actionQueue.analyzeActionString(action)[1] for action in legalActions]
             for params in actionParamsList:
                 if params['type'] == 'LEGAL_A':
-                    decidedAction = params['name'],':',str(params['min'] + (params['max'] - params['min'])*handRankDec)
+                    decidedAction = params['name'] + ':'+str(params['min'] + (params['max'] - params['min'])*handRankDec/2)
                     s.send(decidedAction+'\n')
                     return
                 #TODO: finish others
-        if handRankDec <= .5: #below average hand
+                elif params['type'] == 'LEGAL_B':
+                    print params['name'], "##################################"
+                    if 'C' in params['name']: #either check or call
+                        decidedAction = params['name']
+                        s.send(decidedAction+'\n')
+                        return
+        elif handRankDec <= (1./3): #below average hand
             pass
         if decidedAction is None:
             #go with default action (maybe make this random)
-            recorder.write('decidedAction is None; sending:', defaultAction)
+            #recorder.write('decidedAction is None; sending:', defaultAction)
             s.send(defaultAction+'\n')
         
     def setTimeBankSeconds(self, newTimeStr):

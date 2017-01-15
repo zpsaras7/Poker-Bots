@@ -1,31 +1,25 @@
-from deuces import Deck
-from deuces import Card
+from deuces import *
+
 
 class Board:
-    board_cards = []
-    my_hand = None
-    deck = Deck()
     
     #Both player hand and flop cards should be in the 
     # form of strings
-    def __init__(self, new_deck, player_hand_string, flop=False):
-        self.my_hand = [Card.new(i) for i in player_hand_string]
-        self.deck = new_deck
+    def __init__(self, player_hand, flop=False):
+        self.deck = Deck()
+        self.my_hand = player_hand
+        self.board_cards = []
         self.deck.cards.remove(self.my_hand[0])
         self.deck.cards.remove(self.my_hand[1])
         if flop:
             for new_card in flop:
-                self.board_cards.append(Card.new(new_card))
-                self.deck.cards.remove(self.board_cards[-1])
-        
-    #Input is a user Specified string
-    def add(self, new_card):
-        nc = Card.new(new_card)
-        if nc in self.deck.cards:
-            self.board_cards.append(nc)
-            self.deck.cards.remove(self.board_cards[-1])
-        else:
-            raise Exception("Found repeated card: "+str(new_card))
+                self.board_cards.append(new_card)
+    
+    def emptyBoardRandomRank(self):
+        assert len(self.board_cards)==0
+        self.addRandomly(3)
+        ev = Evaluator()
+        return ev.evaluate(self.my_hand, self.board_cards)
         
     #Input is how many random cards we want to draw from existing deck
     def addRandomly(self, n=1):
