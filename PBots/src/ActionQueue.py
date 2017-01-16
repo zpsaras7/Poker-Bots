@@ -87,7 +87,7 @@ class ActionQueue:
             actionParams['cards'] = [Card.new(cardStr) for cardStr in tokens[1:5]]
             actionParams['actor'] = tokens[5]
          
-        print 'analysis complete; returning ', (actionStr, actionParams)
+        #print 'analysis complete; returning ', (actionStr, actionParams)
         return (actionStr, actionParams)
         
     def clear(self):

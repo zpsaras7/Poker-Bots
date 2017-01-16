@@ -1,11 +1,11 @@
 import argparse
 import socket
-import sys
 
 from deuces import Card
 from deuces import Evaluator
 import matplotlib.pyplot as plt
 from Board import Board
+import random
 
 import Recorder as rec
 import ActionQueue as aq
@@ -35,12 +35,15 @@ class Player:
                          'hand':[], 
                          'haveButton':False,
                          'remaining_time_ms':1000}
+    
+    currentConfidence = None
 
     def run(self, input_socket):
         # Get a file-object for reading packets from the socket.
         # Using this ensures that you get exactly one packet per read.
         f_in = input_socket.makefile()
         i=0
+        self.currentConfidence = []
         while True:
             # Block until the engine sends us a packet.
             data = f_in.readline().strip()
@@ -79,7 +82,6 @@ class Player:
                 
                 index = 3  #index of next word to look up / handle; avoids resizing words list
                 boardCards = [Card.new(cardString) for cardString in words[index:index+numBoardCards] ]
-                print boardCards
                 index+= numBoardCards
 
                 numLastActions = int(words[index])
@@ -93,11 +95,21 @@ class Player:
                 index+= numLegalActions
                 
                 self.setTimeBankSeconds(words[-1])
+                print legalActions
+                print words
                 self.handleAction(potSize, boardCards, lastActions, legalActions)
                 # Currently CHECK on every move. You'll want to change this.
                 #s.send("CHECK\n")
             elif packetName == "HANDOVER":
-                pass
+                win = False
+                for w in words:
+                    if "WIN" in w and self.matchParameters['my_name'] in w:
+                        print "Won hand with confidences: ", self.currentConfidence
+                        win = True
+                if not win:
+                    print "Lost hand with confidences: ", self.currentConfidence
+                print words
+                self.currentConfidence = []
                 #print "Hand over; "
                 #recorder.recordGame(self.currentParameters['handID'], false)
             elif packetName == "REQUESTKEYVALUES":
@@ -126,31 +138,65 @@ class Player:
             handRank = evaluator.evaluate(self.currentParameters['hand'], boardCards)
         handRankDec = evaluator.get_five_card_rank_percentage(handRank)
         recorder.write('handRank:'+ str(handRankDec))
-        
+        self.currentConfidence.append(handRankDec)
         #legalActionQueue = ActionQueue(legalActions)
         decidedAction = None
         defaultAction = 'FOLD'
-        
-        if handRankDec > (1./3): #above average hand
-            actionParamsList = [actionQueue.analyzeActionString(action)[1] for action in legalActions]
+
+        actionParamsList = [actionQueue.analyzeActionString(action)[1] for action in legalActions]
+
+        if handRankDec < .4: #above average hand or random bluff
             for params in actionParamsList:
                 if params['type'] == 'LEGAL_A':
-                    decidedAction = params['name'] + ':'+str(params['min'] + (params['max'] - params['min'])*handRankDec/2)
+                    decidedAction = params['name'] + ':'+str(int(params['min'] + (params['max'] - params['min'])*handRankDec))
                     s.send(decidedAction+'\n')
+                    print decidedAction
                     return
                 #TODO: finish others
                 elif params['type'] == 'LEGAL_B':
-                    print params['name'], "##################################"
                     if 'C' in params['name']: #either check or call
                         decidedAction = params['name']
                         s.send(decidedAction+'\n')
+                        print decidedAction
                         return
-        elif handRankDec <= (1./3): #below average hand
-            pass
+        elif handRankDec >= .4 and handRankDec < .8:
+            for params in actionParamsList:
+                if self.currentParameters['haveButton']:
+                    if params['type'] == 'LEGAL_B:':
+                        if 'C' in params['name']:
+                            decidedAction = params['name']
+                            s.send(decidedAction+'\n')
+                            print decidedAction
+                            return
+                elif random.random() < .5:
+                    if params['type'] == 'LEGAL_B:':
+                        if 'C' in params['name']:
+                            decidedAction = params['name']
+                            s.send(decidedAction+'\n')
+                            print decidedAction
+                            return
+                    elif params['type'] == 'LEGAL_A':
+                        decidedAction = params['name'] + ':'+str(int(params['min'] + (params['max'] - params['min'])*handRankDec/2))
+                        s.send(decidedAction+'\n')
+                        print decidedAction
+                        return
+                    
+        elif handRankDec >= .8: #below average hand
+            for params in actionParamsList:
+                if params['type'] == 'LEGAL_B':
+                    if 'CHECK' in params['name']:
+                        decidedAction = params['name']
+                        s.send(decidedAction+"\n")
+                        print decidedAction
+                        return
+            s.send(defaultAction+'\n')
+            print 'folding'
+            return
         if decidedAction is None:
             #go with default action (maybe make this random)
             #recorder.write('decidedAction is None; sending:', defaultAction)
             s.send(defaultAction+'\n')
+            print 'folding'
         
     def setTimeBankSeconds(self, newTimeStr):
         #Updates the current time remaining
