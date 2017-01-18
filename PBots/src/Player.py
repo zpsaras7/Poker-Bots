@@ -6,6 +6,7 @@ from deuces import Evaluator
 import matplotlib.pyplot as plt
 from Board import Board
 import random
+from HandStrength import HandStrength
 
 import Recorder as rec
 import ActionQueue as aq
@@ -123,8 +124,8 @@ class Player:
             s.send(legalActions[0]+'\n')
             return 
         if len(boardCards) == 0:
-            b = Board(self.currentParameters['hand'])
-            handRank = b.emptyBoardRandomRank()
+            self.handleActionPreFlop(potSize, lastActions, legalActions)
+	    return
         else:
             handRank = evaluator.evaluate(self.currentParameters['hand'], boardCards)
         handRankDec = evaluator.get_five_card_rank_percentage(handRank)
@@ -193,11 +194,39 @@ class Player:
         #Updates the current time remaining
         self.currentParameters['remaining_time_ms'] = float(newTimeStr)*1000
         
-    def handleActionPreFlop(self, potSize, lastActions, legalActions):
+    def handleActionPreFlop(self, potSize, lastActions, legalActions, cutoff=3.0):
 	if len(legalActions) == 1:
             print "taking automatic action; only legal action is:", legalActions[0]
             s.send(legalActions[0]+'\n')
             return 
+	strength = HandStrength(self.currentParameters['hand'])
+	actionParamsList = [actionQueue.analyzeActionString(action)[1] for action in legalActions]
+	print strength
+	if strength >= cutoff:
+	    for params in actionParamsList:
+                if params['type'] == 'LEGAL_A':
+                    decidedAction = params['name'] + ':'+str(int(params['min'] + (params['max'] - params['min'])*handRankDec))
+                    s.send(decidedAction+'\n')
+                    print decidedAction
+                    return
+                elif params['type'] == 'LEGAL_B':
+                    if 'C' in params['name']: #either check or call
+                        decidedAction = params['name']
+                        s.send(decidedAction+'\n')
+                        print decidedAction
+                        return
+	else:
+	    for params in actionParamsList:
+                if params['type'] == 'LEGAL_B':
+                    if 'CHECK' in params['name']:
+                        decidedAction = params['name']
+                        s.send(decidedAction+"\n")
+                        print decidedAction
+                        return
+            s.send('FOLD\n')
+            print 'folding'
+            return
+	
 	
 	
 
