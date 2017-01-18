@@ -77,7 +77,7 @@ class ActionQueue:
             actionParams['actor'] = tokens[2]
 
         elif actionName == 'DISCARD':
-            #actionParams['type'] = 'PERFORMED' #I'm not sure  you can tell 
+            actionParams['type'] = 'PERFORMED' #I'm not sure  you can tell 
             actionParams['actor'] = tokens[1]
         elif actionName == 'DEAL':
             actionParams['type'] = 'PERFORMED'

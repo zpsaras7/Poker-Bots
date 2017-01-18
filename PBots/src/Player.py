@@ -4,7 +4,6 @@ import socket
 from deuces import Card
 from deuces import Evaluator
 import matplotlib.pyplot as plt
-from Board import Board
 import random
 from HandStrength import HandStrength
 
@@ -125,7 +124,7 @@ class Player:
             return 
         if len(boardCards) == 0:
             self.handleActionPreFlop(potSize, lastActions, legalActions)
-	    return
+            return
         else:
             handRank = evaluator.evaluate(self.currentParameters['hand'], boardCards)
         handRankDec = evaluator.get_five_card_rank_percentage(handRank)
@@ -144,34 +143,38 @@ class Player:
                     s.send(decidedAction+'\n')
                     print decidedAction
                     return
-                #TODO: finish others
-                elif params['type'] == 'LEGAL_B':
+            for params in actionParamsList:
+                if params['type'] == 'LEGAL_B':
                     if 'C' in params['name']: #either check or call
                         decidedAction = params['name']
                         s.send(decidedAction+'\n')
                         print decidedAction
                         return
-        elif handRankDec >= .4 and handRankDec < .8:
+        elif handRankDec >= .4 and handRankDec < .7:
             for params in actionParamsList:
-                if self.currentParameters['haveButton']:
-                    if params['type'] == 'LEGAL_B:':
-                        if 'C' in params['name']:
-                            decidedAction = params['name']
+                try:
+                    if self.currentParameters['haveButton']:
+                        if params['type'] == 'LEGAL_B':
+                            if 'C' in params['name']:
+                                decidedAction = params['name']
+                                s.send(decidedAction+'\n')
+                                print decidedAction
+                                return
+                    elif random.random() < .5:
+                        if params['type'] == 'LEGAL_B':
+                            if 'C' in params['name']:
+                                decidedAction = params['name']
+                                s.send(decidedAction+'\n')
+                                print decidedAction
+                                return
+                        elif params['type'] == 'LEGAL_A':
+                            decidedAction = params['name'] + ':'+str(int(params['min'] + (params['max'] - params['min'])*handRankDec/2))
                             s.send(decidedAction+'\n')
                             print decidedAction
                             return
-                elif random.random() < .5:
-                    if params['type'] == 'LEGAL_B:':
-                        if 'C' in params['name']:
-                            decidedAction = params['name']
-                            s.send(decidedAction+'\n')
-                            print decidedAction
-                            return
-                    elif params['type'] == 'LEGAL_A':
-                        decidedAction = params['name'] + ':'+str(int(params['min'] + (params['max'] - params['min'])*handRankDec/2))
-                        s.send(decidedAction+'\n')
-                        print decidedAction
-                        return
+                except:
+                    print "******************************", params
+                    continue
                     
         elif handRankDec >= .8: #below average hand
             for params in actionParamsList:
@@ -195,28 +198,29 @@ class Player:
         self.currentParameters['remaining_time_ms'] = float(newTimeStr)*1000
         
     def handleActionPreFlop(self, potSize, lastActions, legalActions, cutoff=3.0):
-	if len(legalActions) == 1:
+        if len(legalActions) == 1:
             print "taking automatic action; only legal action is:", legalActions[0]
             s.send(legalActions[0]+'\n')
             return 
-	strength = HandStrength(self.currentParameters['hand'])
-	actionParamsList = [actionQueue.analyzeActionString(action)[1] for action in legalActions]
-	print strength
-	if strength >= cutoff:
-	    for params in actionParamsList:
+        strength = HandStrength(self.currentParameters['hand'])
+        actionParamsList = [actionQueue.analyzeActionString(action)[1] for action in legalActions]
+        print strength.chen_score
+        if strength.chen_score >= cutoff:
+            for params in actionParamsList:
                 if params['type'] == 'LEGAL_A':
-                    decidedAction = params['name'] + ':'+str(int(params['min'] + (params['max'] - params['min'])*handRankDec))
+                    decidedAction = params['name'] + ':'+str(int(params['min'] + (params['max'] - params['min'])*(strength.chen_score/100.)))
                     s.send(decidedAction+'\n')
-                    print decidedAction
+                    print decidedAction, "PREFLOP"
                     return
-                elif params['type'] == 'LEGAL_B':
+            for params in actionParamsList:
+                if params['type'] == 'LEGAL_B':
                     if 'C' in params['name']: #either check or call
                         decidedAction = params['name']
                         s.send(decidedAction+'\n')
                         print decidedAction
                         return
-	else:
-	    for params in actionParamsList:
+        else:
+            for params in actionParamsList:
                 if params['type'] == 'LEGAL_B':
                     if 'CHECK' in params['name']:
                         decidedAction = params['name']
@@ -226,9 +230,6 @@ class Player:
             s.send('FOLD\n')
             print 'folding'
             return
-	
-	
-	
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='A Pokerbot.', add_help=False, prog='pokerbot')
