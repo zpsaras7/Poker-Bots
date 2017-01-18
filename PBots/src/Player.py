@@ -10,13 +10,7 @@ import random
 import Recorder as rec
 import ActionQueue as aq
 
-"""
-Simple example pokerbot, written in python.
 
-This is an example of a bare bones pokerbot. It only sets up the socket
-necessary to connect with the engine and then always returns the same action.
-It is meant as an example of how a pokerbot should communicate with the engine.
-"""
 global evaluator
 global recorder
 global actionQueue
@@ -95,11 +89,9 @@ class Player:
                 index+= numLegalActions
                 
                 self.setTimeBankSeconds(words[-1])
-                print legalActions
-                print words
+
                 self.handleAction(potSize, boardCards, lastActions, legalActions)
-                # Currently CHECK on every move. You'll want to change this.
-                #s.send("CHECK\n")
+
             elif packetName == "HANDOVER":
                 win = False
                 for w in words:
@@ -110,7 +102,6 @@ class Player:
                     print "Lost hand with confidences: ", self.currentConfidence
                 print words
                 self.currentConfidence = []
-                #print "Hand over; "
                 #recorder.recordGame(self.currentParameters['handID'], false)
             elif packetName == "REQUESTKEYVALUES":
                 print "Could write some key value pairs...", i
@@ -202,6 +193,14 @@ class Player:
         #Updates the current time remaining
         self.currentParameters['remaining_time_ms'] = float(newTimeStr)*1000
         
+    def handleActionPreFlop(self, potSize, lastActions, legalActions):
+	if len(legalActions) == 1:
+            print "taking automatic action; only legal action is:", legalActions[0]
+            s.send(legalActions[0]+'\n')
+            return 
+	
+	
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='A Pokerbot.', add_help=False, prog='pokerbot')
     parser.add_argument('-h', dest='host', type=str, default='localhost', help='Host to connect to, defaults to localhost')

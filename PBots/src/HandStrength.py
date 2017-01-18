@@ -2,22 +2,42 @@ from deuces import Card
 from deuces import Evaluator
 import matplotlib.pyplot as plt
 
-plt.plot([1, 3, 5, 11, 13, 17, 19])
-plt.show()
+class HandStrength:
+    source = "www.natesholdem.com/pre-flop-odds.php#Top"
 
-handStrength_strongest = 1
-handStrength_weakest = 7462 #per deuces readme
+    def __init__(self, myHand):
+        self.first_card = Card.int_to_str(myHand[0])
+	self.second_card = Card.int_to_str(myHand[0])
+	suited = checkSuited()
+	pair = checkPair()
+	closeness_points = getCloseness()
+	highest_card_points = getHighCardPoints()
 
-favCard = Card.new('Kc')
-testBoard1 = [
+    def checkSuited(self):
+	if self.first_card[1] == self.second_card[1]:
+	    return True
+	else:
+	    return False
+
+    def checkPair(self):
+        if self.first_card[0] == self.second_card[0]:
+	    return True
+	else:
+	    return False
     
-    Card.new('Ah'),
-    Card.new('Kd'),
-    Card.new('Jc')
-]
+    def number_to_points(self, card):
+        if card[0] == 'A':
+	    return 10
+	elif card[0] == 'K':
+	    return 8
+	elif card[0] == 'Q':
+	    return 7
+	elif card[0] == 'J':
+	    return 6
+	elif card[0] == 'T':
+	    return 5
+	else:
+	    return int(card[0])/2.0
 
-testHand1 = [
-    Card.new('Qs'),
-    Card.new('Th')
-]
-
+    def getHighCardPoints(self):
+	return max(self.number_to_points(self.first_card), self.number_to_points(self.second_card))
