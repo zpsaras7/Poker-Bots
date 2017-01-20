@@ -3,13 +3,15 @@ import socket
 
 from deuces import Card
 from deuces import Evaluator
+from Historian import Historian
 #import matplotlib.pyplot as plt
 import random
 from HandStrength import HandStrength
 
 import Recorder as rec
-import ActionQueue as aq
 from actionQueue import ActionQueue
+#from ctypes.wintypes import WORD
+
 
 global evaluator
 global recorder
@@ -63,6 +65,7 @@ class Player:
                 self.matchParameters['bb'] = int(words[4])
                 self.matchParameters['numHands'] = int(words[5])
                 self.setTimeBankSeconds(words[-1])
+                self.historian = Historian(self.matchParameters['opponent_name'], self.matchParameters['my_name'], self.matchParameters['bb'])
             elif packetName == "NEWHAND":
                 self.currentParameters['handID'] = words[1]
                 self.currentParameters['haveButton'] = True if words[2] == 'true' else False
@@ -73,7 +76,7 @@ class Player:
             elif packetName == "GETACTION":
                 potSize = words[1] # how much pot there is currently
                 numBoardCards = int(words[2])
-                print words
+                
                 index = 3  #index of next word to look up / handle; avoids resizing words list
                 boardCards = [Card.new(cardString) for cardString in words[index:index+numBoardCards] ]
                 index+= numBoardCards
@@ -81,6 +84,7 @@ class Player:
                 numLastActions = int(words[index])
                 index+= 1
                 lastActions = words[index : index+numLastActions]
+                self.historian.update([ActionQueue.analyzeActionString(action)[1] for action in lastActions])
                 index+= numLastActions
                
                 numLegalActions = int(words[index])
@@ -94,13 +98,13 @@ class Player:
 
             elif packetName == "HANDOVER":
                 win = False
+                self.historian.update([ActionQueue.analyzeActionString(action)[1] for action in words])
                 for w in words:
                     if "WIN" in w and self.matchParameters['my_name'] in w:
                         #print "Won hand with confidences: ", self.currentConfidence
                         win = True
                 #if not win:
                     #print "Lost hand with confidences: ", self.currentConfidence
-                print words
                 self.currentConfidence = []
                 #recorder.recordGame(self.currentParameters['handID'], false)
             elif packetName == "REQUESTKEYVALUES":
@@ -109,6 +113,17 @@ class Player:
                 # At the end, the engine will allow your bot save key/value pairs.
                 # Send FINISH to indicate you're done.
                 s.send("FINISH\n")
+        print self.matchParameters['opponent_name'], "**************"
+        print "PFR: ", self.historian.getPFR()
+        print "CallRaise: ", self.historian.getCallRaise()
+        print "CheckRaise: ", self.historian.getCheckRaise()
+        print "2Bet: ", self.historian.get2BetRate()
+        print "3Bet: ", self.historian.get3BetRate()
+        print "Aggression: ", self.historian.getAgression()
+        print "Aggression Freq: ", self.historian.getAggroFreq()
+        print "Hands Played: ", self.historian.num_hands_played
+        print "Flops Seen: ", self.historian.seen_flop_count
+        print "Showdowns: ", self.historian.showdown_count
         # Clean up the socket.
         s.close()
         
@@ -229,7 +244,6 @@ class Player:
             return 
         strength = HandStrength(self.currentParameters['hand'])
         actionParamsList = [ActionQueue.analyzeActionString(action)[1] for action in legalActions]
-        #print strength.chen_score
         if strength.chen_score >= cutoff:
             for params in actionParamsList:
                 if params['type'] == 'LEGAL_A':
