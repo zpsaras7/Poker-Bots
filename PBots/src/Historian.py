@@ -128,6 +128,42 @@ class Historian:
                 self.has_checked_preflop = True
                 self.check_count += 1
                 
+    def processPostflopAction(self, action, their_raise_count, my_raise_count):
+        if action['name'].lower() == 'RAISE'.lower():
+            if action['actor'].lower() == self.opponent_name.lower():
+                if their_raise_count == 0:
+                    self.raise_count += 1
+                elif their_raise_count > 0 and my_raise_count > 0:
+                    self.three_B_count += 1
+                elif their_raise_count == 0 and my_raise_count == 1:
+                    self.two_B_count += 1
+                their_raise_count += 1
+            else:
+                if my_raise_count == 0:
+                    self.poss_2_bet += 1
+                elif my_raise_count > 0 and their_raise_count > 0:
+                    self.poss_3_bet += 1
+                    self.my_3_bet_count += 1
+                my_raise_count += 1
+                self.my_pfr_count += 1
+                
+        elif action['name'].lower() == "FOLD".lower():
+            if action['actor'].lower() == self.opponent_name.lower():
+                if their_raise_count == 0 and my_raise_count == 1:
+                    self.pfr_fold_count += 1
+                elif their_raise_count == 1 and my_raise_count == 1:
+                    self.f_3_count += 1
+        
+        elif action['name'].lower() == "CALL".lower():
+            if action['actor'].lower() == self.opponent_name.lower():
+                self.has_called_preflop = True
+                self.call_count += 1
+                
+        elif action['name'].lower() == "CHECK".lower():
+            if action['actor'].lower() == self.opponent_name.lower():
+                self.has_checked_preflop = True
+                self.check_count += 1
+                
     def getPFR(self):
         pfr_rate = self.pfr_count / max(1, (self.num_hands_played - self.instant_fold))
         return (25.0*self.pfr + pfr_rate*(self.num_hands_played - self.instant_fold))/ ((self.num_hands_played-self.instant_fold) + 25.0)
