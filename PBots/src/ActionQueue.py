@@ -43,8 +43,6 @@ class ActionQueue:
     def getNextAction(self):
         return self.queue.get()
     
-    #def getNextOpponentAction(self):
-    #    act = self.getNextAction()
         
     def analyzeActionString(self, actionStr):
         if(debug):
