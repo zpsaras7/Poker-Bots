@@ -73,7 +73,7 @@ class Player:
             elif packetName == "GETACTION":
                 potSize = words[1] # how much pot there is currently
                 numBoardCards = int(words[2])
-                
+                print words
                 index = 3  #index of next word to look up / handle; avoids resizing words list
                 boardCards = [Card.new(cardString) for cardString in words[index:index+numBoardCards] ]
                 index+= numBoardCards
@@ -96,10 +96,10 @@ class Player:
                 win = False
                 for w in words:
                     if "WIN" in w and self.matchParameters['my_name'] in w:
-                        print "Won hand with confidences: ", self.currentConfidence
+                        #print "Won hand with confidences: ", self.currentConfidence
                         win = True
-                if not win:
-                    print "Lost hand with confidences: ", self.currentConfidence
+                #if not win:
+                    #print "Lost hand with confidences: ", self.currentConfidence
                 print words
                 self.currentConfidence = []
                 #recorder.recordGame(self.currentParameters['handID'], false)
@@ -136,21 +136,19 @@ class Player:
 
         actionParamsList = [actionQueue.analyzeActionString(action)[1] for action in legalActions]
 
-        if handRankDec < .4: #above average hand or random bluff
+        if handRankDec < .3: #above average hand or random bluff
             for params in actionParamsList:
                 if params['type'] == 'LEGAL_A':
                     decidedAction = params['name'] + ':'+str(int(params['min'] + (params['max'] - params['min'])*handRankDec))
                     s.send(decidedAction+'\n')
-                    print decidedAction
                     return
             for params in actionParamsList:
                 if params['type'] == 'LEGAL_B':
                     if 'C' in params['name']: #either check or call
                         decidedAction = params['name']
                         s.send(decidedAction+'\n')
-                        print decidedAction
                         return
-        elif handRankDec >= .4 and handRankDec < .7:
+        elif handRankDec >= .3 and handRankDec < .8:
             for params in actionParamsList:
                 try:
                     if self.currentParameters['haveButton']:
@@ -158,66 +156,58 @@ class Player:
                             if 'C' in params['name']:
                                 decidedAction = params['name']
                                 s.send(decidedAction+'\n')
-                                print decidedAction
                                 return
                     elif random.random() < .5:
                         if params['type'] == 'LEGAL_B':
                             if 'C' in params['name']:
                                 decidedAction = params['name']
                                 s.send(decidedAction+'\n')
-                                print decidedAction
                                 return
                         elif params['type'] == 'LEGAL_A':
                             decidedAction = params['name'] + ':'+str(int(params['min'] + (params['max'] - params['min'])*handRankDec))
                             s.send(decidedAction+'\n')
-                            print decidedAction
                             return
                 except:
                     print "******************************", params
                     continue
                     
-        elif handRankDec >= .7: #below average hand
+        elif handRankDec >= .8: #below average hand
             for params in actionParamsList:
                 if params['type'] == 'LEGAL_B':
                     if 'CHECK' in params['name']:
                         decidedAction = params['name']
                         s.send(decidedAction+"\n")
-                        print decidedAction
                         return
             s.send(defaultAction+'\n')
-            print 'folding'
             return
         if decidedAction is None:
             #go with default action (maybe make this random)
             #recorder.write('decidedAction is None; sending:', defaultAction)
             s.send(defaultAction+'\n')
-            print 'folding'
         
     def setTimeBankSeconds(self, newTimeStr):
         #Updates the current time remaining
         self.currentParameters['remaining_time_ms'] = float(newTimeStr)*1000
         
-    def handleActionPreFlop(self, potSize, lastActions, legalActions, cutoff=3.0):
+    def handleActionPreFlop(self, potSize, lastActions, legalActions, cutoff=5.0):
         if len(legalActions) == 1:
             print "taking automatic action; only legal action is:", legalActions[0]
             s.send(legalActions[0]+'\n')
             return 
         strength = HandStrength(self.currentParameters['hand'])
         actionParamsList = [actionQueue.analyzeActionString(action)[1] for action in legalActions]
-        print strength.chen_score
+        #print strength.chen_score
         if strength.chen_score >= cutoff:
             for params in actionParamsList:
                 if params['type'] == 'LEGAL_A':
-                    decidedAction = params['name'] + ':'+str(int(params['min'] + (params['max'] - params['min'])*(strength.chen_score/20.)))
+                    decidedAction = params['name'] + ':'+str(int(params['min'] + (params['max'] - params['min'])*(strength.chen_score/20.)/2))
                     s.send(decidedAction+'\n')
-                    print decidedAction, "PREFLOP"
                     return
             for params in actionParamsList:
                 if params['type'] == 'LEGAL_B':
                     if 'C' in params['name']: #either check or call
                         decidedAction = params['name']
                         s.send(decidedAction+'\n')
-                        print decidedAction
                         return
         else:
             for params in actionParamsList:
@@ -225,10 +215,8 @@ class Player:
                     if 'CHECK' in params['name']:
                         decidedAction = params['name']
                         s.send(decidedAction+"\n")
-                        print decidedAction
                         return
             s.send('FOLD\n')
-            print 'folding'
             return
 
 if __name__ == '__main__':

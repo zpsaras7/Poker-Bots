@@ -69,14 +69,14 @@ class Historian:
         
     def update(self, action_params_list):
         self.last_actions = action_params_list
-        current_state = "pre"
+        postflop = True
         self.num_hands_played += 1
         their_preflop_raise_count = 0
         my_preflop_raise_count = 0
         for params in action_params_list:
             if 'POST'.lower() == params['name'].lower():
-                current_state = "post"
-            if current_state.lower() == "pre".lower():
+                postflop = False
+            if not postflop:
                 self.processPreflopAction(params, their_preflop_raise_count, my_preflop_raise_count)
             else:
                 self.processPostflopAction(params)
@@ -129,7 +129,21 @@ class Historian:
                 self.check_count += 1
                 
     def processPostflopAction(self, action, their_raise_count, my_raise_count):
-        if action['name'].lower() == 'RAISE'.lower():
+        if action['name'].lower() == 'DEAL'.lower():
+            if action['street'].lower() == 'FLOP'.lower():
+                self.seen_flop_count += 1
+            self.opp_check_this_street = False
+        
+        if action['name'].lower() == 'SHOW'.lower():
+            self.showdown_count += 1
+        
+        elif action['name'].lower() == 'BET'.lower():
+            if action['actor'].lower() == self.opponent_name.lower():
+                self.cb_count += 1
+            elif action['actor'].lower() == self.my_name.lower():
+                self.my_C_bet += 1
+        
+        elif action['name'].lower() == 'RAISE'.lower():
             if action['actor'].lower() == self.opponent_name.lower():
                 if their_raise_count == 0:
                     self.raise_count += 1
@@ -147,34 +161,38 @@ class Historian:
                 my_raise_count += 1
                 self.my_pfr_count += 1
                 
+        ## START HERE WITH REVISIONS
         elif action['name'].lower() == "FOLD".lower():
             if action['actor'].lower() == self.opponent_name.lower():
+                if their_raise_count == 0 and my_raise_count == 0:
+                    self.fb_count += 1
                 if their_raise_count == 0 and my_raise_count == 1:
-                    self.pfr_fold_count += 1
+                    self.fold_count += 1
                 elif their_raise_count == 1 and my_raise_count == 1:
-                    self.f_3_count += 1
+                    self.f_2_count += 1
         
         elif action['name'].lower() == "CALL".lower():
             if action['actor'].lower() == self.opponent_name.lower():
-                self.has_called_preflop = True
                 self.call_count += 1
                 
         elif action['name'].lower() == "CHECK".lower():
             if action['actor'].lower() == self.opponent_name.lower():
-                self.has_checked_preflop = True
+                self.opp_check_this_street = True
                 self.check_count += 1
                 
-    def getPFR(self):
-        pfr_rate = self.pfr_count / max(1, (self.num_hands_played - self.instant_fold))
-        return (25.0*self.pfr + pfr_rate*(self.num_hands_played - self.instant_fold))/ ((self.num_hands_played-self.instant_fold) + 25.0)
-    
-    def getCallRaise(self):
-        call_raise_rate = self.call_raise_count / max(1, (self.num_hands_played - self.instant_fold))
-        return (50*self.callraise + call_raise_rate*(self.num_hands_played - self.instant_fold))/((self.num_hands_played - self.instant_fold) + 50)
-    
-    def getCheckRaise(self):
-        check_raise_rate = self.check_raise_count / max(1, self.seen_flop_count)
-        return (50*self.callraise + check_raise_rate*self.seen_flop_count) / (self.seen_flop_count +50)
-    
+#     def getPFR(self):
+#         pfr_rate = self.pfr_count / max(1, (self.num_hands_played - self.instant_fold))
+#         return (25.0*self.pfr + pfr_rate*(self.num_hands_played - self.instant_fold))/ ((self.num_hands_played-self.instant_fold) + 25.0)
+#     
+#     def getCallRaise(self):
+#         call_raise_rate = self.call_raise_count / max(1, (self.num_hands_played - self.instant_fold))
+#         return (50*self.callraise + call_raise_rate*(self.num_hands_played - self.instant_fold))/((self.num_hands_played - self.instant_fold) + 50)
+#     
+#     def getCheckRaise(self):
+#         check_raise_rate = self.check_raise_count / max(1, self.seen_flop_count)
+#         return (50*self.callraise + check_raise_rate*self.seen_flop_count) / (self.seen_flop_count +50)
+#     
+
+# ADD PRINTING TO FILE FOR ALL OF THE VARIABLES
     
                     
