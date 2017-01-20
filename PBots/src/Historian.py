@@ -70,7 +70,6 @@ class Historian:
     def update(self, action_params_list):
         self.last_actions = action_params_list
         postflop = True
-        self.num_hands_played += 1
         their_raise_count = 0
         my_raise_count = 0
         for params in action_params_list:
@@ -83,10 +82,13 @@ class Historian:
             else:
                 self.processPostflopAction(params, their_raise_count, my_raise_count)
             if 'WIN'.lower() == params['name'].lower():
+                self.num_hands_played += 1
                 if params['amount'] == (self.bb*3/2) and params['actor'].lower() == self.opponent_name.lower():
                     self.instant_fold += 1
                 if params['actor'].lower() == self.my_name.lower():
                     self.win_count += 1
+            elif 'TIE'.lower() == params['name'].lower():
+                self.num_hands_played += 0.5
                     
     def processPreflopAction(self, action, their_raise_count, my_raise_count):
         try:
@@ -140,7 +142,7 @@ class Historian:
                 self.opp_check_this_street = False
             
             if action['name'].lower() == 'SHOW'.lower():
-                self.showdown_count += 1
+                self.showdown_count += (1./2) #2 shows per showdown
             
             elif action['name'].lower() == 'BET'.lower():
                 if action['actor'].lower() == self.opponent_name.lower():

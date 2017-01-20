@@ -72,6 +72,6 @@ class HandStrength:
 				score += 2
 				score -= closeness
 				
-		if closeness < 2 and high_card < 12:
+		if closeness < 2 and high_card < 7:
 			score += 1
 		return int(round(score))

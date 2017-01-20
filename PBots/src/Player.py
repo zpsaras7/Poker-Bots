@@ -233,8 +233,7 @@ class Player:
         #Updates the current time remaining
         self.currentParameters['remaining_time_ms'] = float(newTimeStr)*1000
         
-    def handleActionPreFlop(self, potSize, lastActions, legalActions, cutoff=5.0):
-        print 'handleActionPreFlop'
+    def handleActionPreFlop(self, potSize, lastActions, legalActions, cutoff=7.0):
         if len(legalActions) == 1:
             print "taking automatic action; only legal action is:", legalActions[0]
             s.send(legalActions[0]+'\n')
