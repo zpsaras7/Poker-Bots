@@ -168,7 +168,7 @@ class Player:
                                 print decidedAction
                                 return
                         elif params['type'] == 'LEGAL_A':
-                            decidedAction = params['name'] + ':'+str(int(params['min'] + (params['max'] - params['min'])*handRankDec/2))
+                            decidedAction = params['name'] + ':'+str(int(params['min'] + (params['max'] - params['min'])*handRankDec))
                             s.send(decidedAction+'\n')
                             print decidedAction
                             return
@@ -176,7 +176,7 @@ class Player:
                     print "******************************", params
                     continue
                     
-        elif handRankDec >= .8: #below average hand
+        elif handRankDec >= .7: #below average hand
             for params in actionParamsList:
                 if params['type'] == 'LEGAL_B':
                     if 'CHECK' in params['name']:
@@ -208,7 +208,7 @@ class Player:
         if strength.chen_score >= cutoff:
             for params in actionParamsList:
                 if params['type'] == 'LEGAL_A':
-                    decidedAction = params['name'] + ':'+str(int(params['min'] + (params['max'] - params['min'])*(strength.chen_score/100.)))
+                    decidedAction = params['name'] + ':'+str(int(params['min'] + (params['max'] - params['min'])*(strength.chen_score/20.)))
                     s.send(decidedAction+'\n')
                     print decidedAction, "PREFLOP"
                     return

@@ -66,10 +66,12 @@ class HandStrength:
 	def getChenScore(self, high_card, p, s, closeness):
 		score = high_card
 		if p:
-			score = score * score
+			score *= 2
 		else:
 			if s:
 				score += 2
 				score -= closeness
-		return score
-	
+				
+		if closeness < 2 and high_card < 12:
+			score += 1
+		return int(round(score))
