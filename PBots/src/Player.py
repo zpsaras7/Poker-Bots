@@ -91,7 +91,6 @@ class Player:
                 index+= 1
                 legalActions = words[index : index+numLegalActions]
                 index+= numLegalActions
-                
                 self.setTimeBankSeconds(words[-1])
 
                 self.handleAction(potSize, boardCards, lastActions, legalActions)
@@ -108,7 +107,6 @@ class Player:
                 self.currentConfidence = []
                 #recorder.recordGame(self.currentParameters['handID'], false)
             elif packetName == "REQUESTKEYVALUES":
-                print "Could write some key value pairs...", i
                 i+= 1
                 # At the end, the engine will allow your bot save key/value pairs.
                 # Send FINISH to indicate you're done.
@@ -144,13 +142,11 @@ class Player:
         else:
             handRank = evaluator.evaluate(self.currentParameters['hand'], boardCards)
         handRankDec = evaluator.get_five_card_rank_percentage(handRank)
+        print "LEGAL", legalActions
         self.currentConfidence.append(handRankDec)
-
         legalActionParamsList = [ActionQueue.analyzeActionString(action)[1] for action in legalActions]
-
         if handRankDec < .3: #above average hand or random bluff
-            print "Above avg hand (", handRankDec,')'
-                    
+            print "Above avg hand (", handRankDec,')'     
             for legalActionParams in legalActionParamsList:
                 if legalActionParams['type'] == 'LEGAL_A':
                     _max = legalActionParams['max']
@@ -170,7 +166,7 @@ class Player:
                 if self.currentParameters['haveButton']: #CALL or CHECK if dealer 
                     if legalActionParams['name'] == 'CHECK' or legalActionParams['name'] == 'CALL':
                         a = legalActionParams['name']
-                        acceptableActions.addAction( a, 0 )
+                        acceptableActions.addAction( a, 1 )
                         print "\tAdded acceptable action[2]:", a, '\n\tAcceptable:', acceptableActions.getStringForPrinting(2)
                         
                     elif _random < .2 and legalActionParams['type'] == 'LEGAL_A': #sometimes bet with button
@@ -179,7 +175,7 @@ class Player:
                         # with the button and this hand, don't bet near max when betting
                         _max-= int((_max - _min) / 2.)
                         a = legalActionParams['name'] + ':'+str(int( _min + (_max - _min)*(1. - handRankDec) ))
-                        acceptableActions.addAction( a, 1 ) # 
+                        acceptableActions.addAction( a, 0 ) # 
                         print "\tAdded acceptable action[3]:", a, '\n\tAcceptable:', acceptableActions.getStringForPrinting(2)
                             
                 #Be aggressive with this type of hand some of the time
@@ -194,12 +190,12 @@ class Player:
                             potential = legalActionParams['min']
                             
                         a = legalActionParams['name'] + ':'+str(potential)
-                        acceptableActions.addAction( a, 1) 
+                        acceptableActions.addAction( a, 0) 
                         print "\tAdded acceptable action[4]:", a, '\n\tAcceptable:', acceptableActions.getStringForPrinting(2)
                             
                     elif legalActionParams['name'] == 'CHECK' or legalActionParams['name'] == 'CALL':
                         a = legalActionParams['name']
-                        acceptableActions.addAction( a, 0 )
+                        acceptableActions.addAction( a, 1 )
                         print "\tAdded acceptable action[5]:", a, '\n\tAcceptable:', acceptableActions.getStringForPrinting(2)
         
         elif handRankDec >= .8: #below average hand
@@ -238,33 +234,40 @@ class Player:
         self.currentParameters['remaining_time_ms'] = float(newTimeStr)*1000
         
     def handleActionPreFlop(self, potSize, lastActions, legalActions, cutoff=5.0):
+        print 'handleActionPreFlop'
         if len(legalActions) == 1:
             print "taking automatic action; only legal action is:", legalActions[0]
             s.send(legalActions[0]+'\n')
             return 
+        acceptableActions = ActionQueue(legalActions[0], 1000) #starts with default action with lowest priority
+        
         strength = HandStrength(self.currentParameters['hand'])
         actionParamsList = [ActionQueue.analyzeActionString(action)[1] for action in legalActions]
-        if strength.chen_score >= cutoff:
+        if strength.chen_score >= cutoff and random.random() < .8:
             for params in actionParamsList:
                 if params['type'] == 'LEGAL_A':
-                    decidedAction = params['name'] + ':'+str(int(params['min'] + (params['max'] - params['min'])*(strength.chen_score/20.)/2))
-                    s.send(decidedAction+'\n')
-                    return
-            for params in actionParamsList:
+                    a = params['name'] + ':'+str(int(params['min'] + (params['max'] - params['min'])*(strength.chen_score/20.)/2))
+                    acceptableActions.addAction( a, 0 )
                 if params['type'] == 'LEGAL_B':
                     if 'C' in params['name']: #either check or call
-                        decidedAction = params['name']
-                        s.send(decidedAction+'\n')
-                        return
-        else:
+                        acceptableActions.addAction(params['name'], 1)
+            decidedAction = acceptableActions.getNextAction()
+            print "Sending Action:", decidedAction
+            s.send(decidedAction+"\n")
+        else: ##don't be betting
             for params in actionParamsList:
-                if params['type'] == 'LEGAL_B':
+                if params['type'] == 'LEGAL_A': #bet if legally obligated 
+                    a = params['name'] + ':'+str(params['min'])
+                    acceptableActions.addAction( a, 10 )
+                elif params['type'] == 'LEGAL_B':
                     if 'CHECK' in params['name']:
-                        decidedAction = params['name']
-                        s.send(decidedAction+"\n")
-                        return
-            s.send('FOLD\n')
-            return
+                        acceptableActions.addAction(params['name'], 0)
+                    else:
+                        acceptableActions.addAction(params['name'], 1)
+                        
+            decidedAction = acceptableActions.getNextAction()
+            print "Sending Action:", decidedAction
+            s.send(decidedAction+"\n")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='A Pokerbot.', add_help=False, prog='pokerbot')

@@ -89,8 +89,8 @@ class ActionQueue(object):
             actionParams['street'] = tokens[1] #FLOP, TURN or RIVER
         elif actionName == 'SHOW':
             actionParams['type'] = 'PERFORMED'
-            actionParams['cards'] = [Card.new(cardStr) for cardStr in tokens[1:5]]
-            actionParams['actor'] = tokens[5]
+            actionParams['cards'] = [Card.new(cardStr) for cardStr in tokens[1:3]]
+            actionParams['actor'] = tokens[3]
          
         #print 'analysis complete; returning ', (actionStr, actionParams)
         return (actionStr, actionParams)
