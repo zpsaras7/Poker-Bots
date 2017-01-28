@@ -3,21 +3,21 @@ import socket
 
 from deuces import Card
 from deuces import Evaluator
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import random
 from HandStrength import HandStrength
 
 import Recorder as rec
 import ActionQueue as aq
-
+from actionQueue import ActionQueue
 
 global evaluator
 global recorder
-global actionQueue
+#global actionQueue
 
 evaluator = Evaluator()
 recorder = rec.Recorder()
-actionQueue = aq.ActionQueue()
+#actionQueue = aq.ActionQueue()
 
 class Player:
     matchParameters = {'my_name' : '', 
@@ -117,6 +117,7 @@ class Player:
         Logic for deciding what action to respond with given the most recent GETACTION packet
         '''
         #recorder.write('handleAction(); board cards ', boardCards)
+        acceptableActions = ActionQueue(legalActions[0], 1000) #starts with default action with lowest priority
         
         if len(legalActions) == 1:
             print "taking automatic action; only legal action is:", legalActions[0]
@@ -128,62 +129,94 @@ class Player:
         else:
             handRank = evaluator.evaluate(self.currentParameters['hand'], boardCards)
         handRankDec = evaluator.get_five_card_rank_percentage(handRank)
-        recorder.write('handRank:'+ str(handRankDec))
         self.currentConfidence.append(handRankDec)
-        #legalActionQueue = ActionQueue(legalActions)
-        decidedAction = None
-        defaultAction = 'FOLD'
 
-        actionParamsList = [actionQueue.analyzeActionString(action)[1] for action in legalActions]
+        legalActionParamsList = [ActionQueue.analyzeActionString(action)[1] for action in legalActions]
 
         if handRankDec < .3: #above average hand or random bluff
-            for params in actionParamsList:
-                if params['type'] == 'LEGAL_A':
-                    decidedAction = params['name'] + ':'+str(int(params['min'] + (params['max'] - params['min'])*handRankDec))
-                    s.send(decidedAction+'\n')
-                    return
-            for params in actionParamsList:
-                if params['type'] == 'LEGAL_B':
-                    if 'C' in params['name']: #either check or call
-                        decidedAction = params['name']
-                        s.send(decidedAction+'\n')
-                        return
-        elif handRankDec >= .3 and handRankDec < .8:
-            for params in actionParamsList:
-                try:
-                    if self.currentParameters['haveButton']:
-                        if params['type'] == 'LEGAL_B':
-                            if 'C' in params['name']:
-                                decidedAction = params['name']
-                                s.send(decidedAction+'\n')
-                                return
-                    elif random.random() < .5:
-                        if params['type'] == 'LEGAL_B':
-                            if 'C' in params['name']:
-                                decidedAction = params['name']
-                                s.send(decidedAction+'\n')
-                                return
-                        elif params['type'] == 'LEGAL_A':
-                            decidedAction = params['name'] + ':'+str(int(params['min'] + (params['max'] - params['min'])*handRankDec))
-                            s.send(decidedAction+'\n')
-                            return
-                except:
-                    print "******************************", params
-                    continue
+            print "Above avg hand (", handRankDec,')'
                     
+            for legalActionParams in legalActionParamsList:
+                if legalActionParams['type'] == 'LEGAL_A':
+                    _max = legalActionParams['max']
+                    _min = legalActionParams['min']
+                    a = legalActionParams['name'] + ':'+str(int( _min + (_max - _min)*(1. - handRankDec) )) #bet higher w/ lower handRankDec
+                    acceptableActions.addAction(a, 0) # high priority in p queue
+                    print "\tAdded acceptable action[0]:", a, '\n\tAcceptable:', acceptableActions.getStringForPrinting(2)
+                elif legalActionParams['name'] == 'CALL' or legalActionParams['name'] == 'CHECK':
+                    a = legalActionParams['name']
+                    acceptableActions.addAction( a, 1 )
+                    print "\tAdded acceptable action[1]:", a, '\n\tAcceptable:', acceptableActions.getStringForPrinting(2)
+                
+        elif handRankDec >= .3 and handRankDec < .8:
+            print "Medium hand (", handRankDec,')'
+            _random = random.random() # grab a random number before iterating to be consistent with 1 set of rules
+            for legalActionParams in legalActionParamsList:
+                if self.currentParameters['haveButton']: #CALL or CHECK if dealer 
+                    if legalActionParams['name'] == 'CHECK' or legalActionParams['name'] == 'CALL':
+                        a = legalActionParams['name']
+                        acceptableActions.addAction( a, 0 )
+                        print "\tAdded acceptable action[2]:", a, '\n\tAcceptable:', acceptableActions.getStringForPrinting(2)
+                        
+                    elif _random < .2 and legalActionParams['type'] == 'LEGAL_A': #sometimes bet with button
+                        _max = legalActionParams['max']
+                        _min = legalActionParams['min']
+                        # with the button and this hand, don't bet near max when betting
+                        _max-= int((_max - _min) / 2.)
+                        a = legalActionParams['name'] + ':'+str(int( _min + (_max - _min)*(1. - handRankDec) ))
+                        acceptableActions.addAction( a, 1 ) # 
+                        print "\tAdded acceptable action[3]:", a, '\n\tAcceptable:', acceptableActions.getStringForPrinting(2)
+                            
+                #Be aggressive with this type of hand some of the time
+                elif not self.currentParameters['haveButton'] and _random > handRankDec:
+                    if legalActionParams['type'] == 'LEGAL_A':
+                        _max = legalActionParams['max']
+                        _min = legalActionParams['min']
+                        
+                        # reduce max bet so opponent can't correlate our bets to our handRank as easily
+                        potential = int(_max - _random * (_max - _min)) #compute a semi-random amount and check it for validity
+                        if(potential < legalActionParams['min'] or potential > legalActionParams['max']):
+                            potential = legalActionParams['min']
+                            
+                        a = legalActionParams['name'] + ':'+str(potential)
+                        acceptableActions.addAction( a, 1) 
+                        print "\tAdded acceptable action[4]:", a, '\n\tAcceptable:', acceptableActions.getStringForPrinting(2)
+                            
+                    elif legalActionParams['name'] == 'CHECK' or legalActionParams['name'] == 'CALL':
+                        a = legalActionParams['name']
+                        acceptableActions.addAction( a, 0 )
+                        print "\tAdded acceptable action[5]:", a, '\n\tAcceptable:', acceptableActions.getStringForPrinting(2)
+        
         elif handRankDec >= .8: #below average hand
-            for params in actionParamsList:
-                if params['type'] == 'LEGAL_B':
-                    if 'CHECK' in params['name']:
-                        decidedAction = params['name']
-                        s.send(decidedAction+"\n")
-                        return
-            s.send(defaultAction+'\n')
-            return
-        if decidedAction is None:
-            #go with default action (maybe make this random)
-            #recorder.write('decidedAction is None; sending:', defaultAction)
-            s.send(defaultAction+'\n')
+            print "shitty hand (", handRankDec,')'
+            for legalActionParams in legalActionParamsList:
+                if legalActionParams['type'] == 'LEGAL_B':
+                    #Try to FOLD if possible
+                    if legalActionParams['name'] == 'FOLD':
+                        a = legalActionParams['name']
+                        acceptableActions.addAction( a, 0 )
+                        print "\tAdded acceptable action[6]:", a, '\n\tAcceptable:', acceptableActions.getStringForPrinting(2)
+
+                    elif legalActionParams['name'] == 'CHECK':
+                        a = legalActionParams['name']
+                        acceptableActions.addAction( a, 1 )
+                        print "\tAdded acceptable action[7]:", a, '\n\tAcceptable:', acceptableActions.getStringForPrinting(2)
+                        
+                elif legalActionParams['type'] == 'LEGAL_A':
+                    #Do the min if have to bet/raise
+                    a = legalActionParams['name'] + ':'+str(legalActionParams['min'])
+                    acceptableActions.addAction( a, 5 ) 
+                    print "\tAdded acceptable action[8]:", a, '\n\tAcceptable:', acceptableActions.getStringForPrinting(2)
+            
+        if len(acceptableActions) > 0:
+            #Got some acceptable action responses; choose one:
+            #TODO: choose 2nd best with low probability?
+            decidedAction = acceptableActions.getNextAction()
+            print "Sending Action:", decidedAction
+            s.send(decidedAction+"\n")
+        else:
+            print "ERROR", legalActions
+            s.send(legalActions[0]+"\n")
         
     def setTimeBankSeconds(self, newTimeStr):
         #Updates the current time remaining
@@ -195,7 +228,7 @@ class Player:
             s.send(legalActions[0]+'\n')
             return 
         strength = HandStrength(self.currentParameters['hand'])
-        actionParamsList = [actionQueue.analyzeActionString(action)[1] for action in legalActions]
+        actionParamsList = [ActionQueue.analyzeActionString(action)[1] for action in legalActions]
         #print strength.chen_score
         if strength.chen_score >= cutoff:
             for params in actionParamsList:
